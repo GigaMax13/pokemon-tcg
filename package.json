@@ -1,0 +1,28 @@
+{
+  "name": "pokemon-tcg-data-loader",
+  "version": "1.0.0",
+  "description": "Pokemon TCG data loader for MongoDB",
+  "type": "module",
+  "scripts": {
+    "load": "node scripts/load-data.js",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "sync:upstream": "git fetch upstream && git checkout main && git merge upstream/master",
+    "sync:setup": "git remote add upstream https://github.com/PokemonTCG/pokemon-tcg-data.git"
+  },
+  "keywords": [
+    "pokemon",
+    "tcg",
+    "mongodb",
+    "prisma"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.7.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.7.1"
+  }
+}

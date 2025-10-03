@@ -1,0 +1,71 @@
+// This is your Prisma schema file for MongoDB
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Set {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  setId        String   @unique
+  name         String
+  series       String
+  printedTotal Int
+  total        Int
+  legalities   Json
+  ptcgoCode    String?
+  releaseDate  String
+  updatedAt    String
+  images       Json
+  cards        Card[]
+  
+  @@map("sets")
+}
+
+model Card {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  cardId                 String   @unique
+  name                   String
+  supertype              String
+  subtypes               String[]
+  level                  String?
+  hp                     String?
+  types                  String[]
+  evolvesFrom            String?
+  evolvesTo              String[]
+  abilities              Json?
+  attacks                Json?
+  weaknesses             Json?
+  resistances            Json?
+  retreatCost            String[]
+  convertedRetreatCost   Int?
+  number                 String
+  artist                 String?
+  rarity                 String?
+  flavorText             String?
+  nationalPokedexNumbers Int[]
+  legalities             Json
+  regulationMark         String?
+  images                 Json
+  tcgPlayer              Json?
+  cardmarket             Json?
+  
+  // Relation to Set
+  setId                  String?  @db.ObjectId
+  set                    Set?     @relation(fields: [setId], references: [id])
+  
+  // Additional fields that might appear in some cards
+  rules                  String[]
+  ancientTrait           Json?
+  
+  @@map("cards")
+  @@index([name])
+  @@index([supertype])
+  @@index([setId])
+}
+

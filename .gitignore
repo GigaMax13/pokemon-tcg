@@ -1,2 +1,4 @@
-cards/en/v1/
-.idea/
+node_modules/
+.env
+*.log
+.DS_Store
