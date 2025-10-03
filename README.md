@@ -398,3 +398,60 @@ All error responses include a JSON object with an `error` field describing the i
 ## CORS
 
 The API includes CORS headers to allow cross-origin requests from web applications.
+
+## MCP Server
+
+This project includes a Model Context Protocol (MCP) server that exposes the Pokemon TCG API data as resources for AI models and MCP-compatible clients.
+
+### Starting the MCP Server
+
+```bash
+# Start the MCP server
+yarn mcp:start
+```
+
+The MCP server runs as a stdio-based server and can be configured in MCP-compatible clients like Claude Desktop or Cursor.
+
+### Available Resources
+
+The MCP server exposes the following resources:
+
+- `pokemon-tcg://sets` - List all sets with pagination (`?limit=10&offset=0`)
+- `pokemon-tcg://sets/id/{setId}` - Get a specific set by setId
+- `pokemon-tcg://sets/code/{ptcgoCode}` - Get a specific set by PTCGO code
+- `pokemon-tcg://cards` - List all cards with pagination and search (`?limit=10&offset=0&searchName=pikachu`)
+- `pokemon-tcg://cards/id/{cardId}` - Get a specific card by cardId
+- `pokemon-tcg://cards/set/{setId}` - Get all cards from a specific set (`?limit=10&offset=0`)
+
+### Configuration
+
+The MCP server connects to the Pokemon TCG API server. You can configure the API URL using the `POKEMON_TCG_API_URL` environment variable (defaults to `http://localhost:3000`).
+
+### Usage with MCP Clients
+
+To use this MCP server with Claude Desktop or other MCP clients, configure it as a stdio-based server:
+
+```json
+{
+  "mcpServers": {
+    "pokemon-tcg": {
+      "command": "yarn",
+      "args": ["mcp:start"],
+      "cwd": "/path/to/pokemon-tcg"
+    }
+  }
+}
+```
+
+Or using the bin alias:
+
+```json
+{
+  "mcpServers": {
+    "pokemon-tcg": {
+      "command": "pokemon-tcg-mcp",
+      "cwd": "/path/to/pokemon-tcg"
+    }
+  }
+}
+```
