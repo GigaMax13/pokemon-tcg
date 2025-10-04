@@ -1,8 +1,9 @@
+#!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
 const BASE_URL = process.env.POKEMON_TCG_API_URL || "http://localhost:3000";
@@ -15,52 +16,12 @@ const server = new Server(
   },
   {
     capabilities: {
-      resources: {},
+      tools: {},
     },
   }
 );
 
-// Define available resources
-const resources = [
-  {
-    uri: "pokemon-tcg://sets",
-    name: "Sets (paginated)",
-    mimeType: "application/json",
-    description: "List all Pokemon TCG sets with pagination",
-  },
-  {
-    uri: "pokemon-tcg://sets/id/{setId}",
-    name: "Set by setId",
-    mimeType: "application/json",
-    description: "Get a specific set by its setId",
-  },
-  {
-    uri: "pokemon-tcg://sets/code/{ptcgoCode}",
-    name: "Set by ptcgoCode",
-    mimeType: "application/json",
-    description: "Get a specific set by its PTCGO code",
-  },
-  {
-    uri: "pokemon-tcg://cards",
-    name: "Cards (paginated/search)",
-    mimeType: "application/json",
-    description: "List all Pokemon TCG cards with pagination and search",
-  },
-  {
-    uri: "pokemon-tcg://cards/id/{cardId}",
-    name: "Card by cardId",
-    mimeType: "application/json",
-    description: "Get a specific card by its cardId",
-  },
-  {
-    uri: "pokemon-tcg://cards/set/{setId}",
-    name: "Cards by setId",
-    mimeType: "application/json",
-    description: "Get all cards from a specific set",
-  },
-];
-
-// Helper function to fetch from API and return JSON response
+// Helper function to fetch from API
 async function fetchApiData(endpoint, params = {}) {
   const url = new URL(`${BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
@@ -76,130 +37,182 @@ async function fetchApiData(endpoint, params = {}) {
   return await resp.json();
 }
 
-// Handle resources/list requests
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
+// Handle tools/list
+server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    resources: resources,
+    tools: [
+      {
+        name: "get_sets",
+        description: "List all Pokemon TCG sets with pagination",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "number",
+              description: "Number of results to return",
+            },
+            offset: {
+              type: "number",
+              description: "Offset for pagination",
+            },
+          },
+        },
+      },
+      {
+        name: "get_set_by_id",
+        description: "Get a specific set by its setId",
+        inputSchema: {
+          type: "object",
+          properties: {
+            setId: {
+              type: "string",
+              description: "The set ID (e.g., 'base1')",
+            },
+          },
+          required: ["setId"],
+        },
+      },
+      {
+        name: "get_set_by_code",
+        description: "Get a specific set by its PTCGO code",
+        inputSchema: {
+          type: "object",
+          properties: {
+            ptcgoCode: {
+              type: "string",
+              description: "The PTCGO code",
+            },
+          },
+          required: ["ptcgoCode"],
+        },
+      },
+      {
+        name: "get_cards",
+        description: "List all Pokemon TCG cards with pagination and search",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "number",
+              description: "Number of results to return",
+            },
+            offset: {
+              type: "number",
+              description: "Offset for pagination",
+            },
+            searchName: {
+              type: "string",
+              description: "Search for cards by name",
+            },
+          },
+        },
+      },
+      {
+        name: "get_card_by_id",
+        description: "Get a specific card by its cardId",
+        inputSchema: {
+          type: "object",
+          properties: {
+            cardId: {
+              type: "string",
+              description: "The card ID",
+            },
+          },
+          required: ["cardId"],
+        },
+      },
+      {
+        name: "get_cards_by_set",
+        description: "Get all cards from a specific set",
+        inputSchema: {
+          type: "object",
+          properties: {
+            setId: {
+              type: "string",
+              description: "The set ID (e.g., 'base1')",
+            },
+            limit: {
+              type: "number",
+              description: "Number of results to return",
+            },
+            offset: {
+              type: "number",
+              description: "Offset for pagination",
+            },
+          },
+          required: ["setId"],
+        },
+      },
+    ],
   };
 });
 
-// Handle resources/read requests
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-  const u = new URL(uri);
-  const path = u.pathname;
-  const q = u.searchParams;
+// Handle tools/call
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
 
   try {
-    // Route to API based on URI
-    if (u.hostname === "sets" && (path === "/" || path === "")) {
-      const params = {};
-      if (q.has("limit")) params.limit = q.get("limit");
-      if (q.has("offset")) params.offset = q.get("offset");
-      const data = await fetchApiData("/sets", params);
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
+    let data;
+
+    switch (name) {
+      case "get_sets":
+        data = await fetchApiData("/sets", args);
+        break;
+
+      case "get_set_by_id":
+        data = await fetchApiData(`/sets/id/${encodeURIComponent(args.setId)}`);
+        break;
+
+      case "get_set_by_code":
+        data = await fetchApiData(
+          `/sets/code/${encodeURIComponent(args.ptcgoCode)}`
+        );
+        break;
+
+      case "get_cards":
+        data = await fetchApiData("/cards", args);
+        break;
+
+      case "get_card_by_id":
+        data = await fetchApiData(
+          `/cards/id/${encodeURIComponent(args.cardId)}`
+        );
+        break;
+
+      case "get_cards_by_set":
+        const { setId, ...params } = args;
+        data = await fetchApiData(
+          `/cards/set/${encodeURIComponent(setId)}`,
+          params
+        );
+        break;
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
     }
 
-    if (u.hostname === "sets" && path.startsWith("/id/")) {
-      const setId = path.split("/")[2];
-      const data = await fetchApiData(`/sets/id/${encodeURIComponent(setId)}`);
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    }
-
-    if (u.hostname === "sets" && path.startsWith("/code/")) {
-      const ptcgoCode = path.split("/")[2];
-      const data = await fetchApiData(
-        `/sets/code/${encodeURIComponent(ptcgoCode)}`
-      );
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    }
-
-    if (u.hostname === "cards" && (path === "/" || path === "")) {
-      const params = {};
-      ["limit", "offset", "searchName"].forEach((k) => {
-        if (q.has(k)) params[k] = q.get(k);
-      });
-      const data = await fetchApiData("/cards", params);
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    }
-
-    if (u.hostname === "cards" && path.startsWith("/id/")) {
-      const cardId = path.split("/")[2];
-      const data = await fetchApiData(
-        `/cards/id/${encodeURIComponent(cardId)}`
-      );
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    }
-
-    if (u.hostname === "cards" && path.startsWith("/set/")) {
-      const setId = path.split("/")[2];
-      const params = {};
-      ["limit", "offset"].forEach((k) => {
-        if (q.has(k)) params[k] = q.get(k);
-      });
-      const data = await fetchApiData(
-        `/cards/set/${encodeURIComponent(setId)}`,
-        params
-      );
-      return {
-        contents: [
-          {
-            uri: uri,
-            mimeType: "application/json",
-            text: JSON.stringify(data, null, 2),
-          },
-        ],
-      };
-    }
-
-    throw new Error(`Unknown resource: ${uri}`);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
   } catch (error) {
-    console.error(`Error fetching resource ${uri}:`, error.message);
-    throw error;
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error.message}`,
+        },
+      ],
+      isError: true,
+    };
   }
 });
 
-// Start receiving messages on stdin and sending messages on stdout
+// Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
